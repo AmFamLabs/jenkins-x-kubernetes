@@ -1,0 +1,114 @@
+pipeline {
+  agent {
+    label "jenkins-python"
+  }
+  environment {
+    ORG = 'REPLACE_ME_ORG'
+    APP_NAME = 'REPLACE_ME_APP_NAME'
+    PYPI_ADDRESS = credentials('pypi-address')
+    PYPI_CREDS = credentials('pypi-credentials')
+    TWINE_USERNAME = "${PYPI_CREDS_USR}"
+    TWINE_PASSWORD = "${PYPI_CREDS_PSW}"
+    TWINE_REPO = "https://${PYPI_ADDRESS}"
+    PIP_EXTRA_INDEX_URL = "https://${PYPI_CREDS}@${PYPI_ADDRESS}/simple"
+  }
+  stages {
+    stage('Unit test') {
+      when {
+        expression {
+          return sh(script: "git log -1 --pretty=format:'%an' | grep '^jenkins-x-bot'", returnStatus: true) != 0
+        }
+      }
+      steps {
+        container('python') {
+          sh "docker build --build-arg PIP_EXTRA_INDEX_URL=$PIP_EXTRA_INDEX_URL -t library_image ."
+          sh "docker run library_image make test"
+        }
+      }
+    }
+    stage('Build and publish PR') {
+      when {
+        branch 'PR-*'
+      }
+      steps {
+        container('python') {
+          script {
+            sh '''
+            source /root/.bashrc
+            pipenv install --dev --deploy
+            pipenv lock -r > requirements.txt
+            '''
+
+            base_version = sh(script: "pipenv run setup.py --version", returnStdout: true).trim()
+            pr = BRANCH_NAME.replaceAll(/-/, "").toLowerCase()
+            expanded_version = "${base_version}+${pr}.${BUILD_NUMBER}"
+
+            sh "sed -i -e 's/^__version__ = .*/__version__ = \"$expanded_version\"/' setup.py"
+
+            sh "pipenv run python setup.py bdist_wheel"
+            sh "twine upload --repository-url ${TWINE_REPO} dist/*"
+
+            pullRequest.comment("Successfully built and published **$expanded_version**")
+          }
+        }
+      }
+    }
+    stage('Build and publish "master"') {
+      when {
+        expression {
+          return BRANCH_NAME == 'master' && sh(script: "git log -1 --pretty=format:'%an' | grep '^jenkins-x-bot'", returnStatus: true) != 0
+        }
+      }
+      steps {
+        container('python') {
+          script {
+            sh '''
+            source /root/.bashrc
+            pipenv install --dev --deploy
+            pipenv lock -r > requirements.txt
+            '''
+
+            sh "pipenv run python setup.py bdist_wheel"
+            sh "twine upload --repository-url ${TWINE_REPO} dist/*"
+
+            version = sh(script: "pipenv run setup.py --version", returnStdout: true).trim()
+            sh "jx step git credentials"
+            sh "git config credential.helper store"
+            sh "git tag -fa v${version} -m 'Release version ${version}'"
+            sh "git push origin v${version}"
+          }
+        }
+      }
+    }
+    stage('Increment patch version') {
+      when {
+        expression {
+          return BRANCH_NAME == 'master' && sh(script: "git log -1 --pretty=format:'%an' | grep '^jenkins-x-bot'", returnStatus: true) != 0
+        }
+      }
+      steps {
+        container('python') {
+          script {
+            project_name = sh(script: "pipenv run setup.py --name", returnStdout: true).trim()
+            version = sh(script: "pipenv run setup.py --version", returnStdout: true).trim()
+            new_patch_version = ((version.getAt(version.size() - 1) as Integer) + 1) as String
+            new_version = version.replaceAll(/.$/, new_patch_version)
+
+            sh "git checkout master"
+            sh "sed -i -e 's/^__version__ = .*/__version__ = \"${new_version}\"/' setup.py"
+            sh "jx step git credentials"
+            sh "git config credential.helper store"
+            sh "git add setup.py"
+            sh "git commit -m 'Increment patch version'"
+            sh "git push"
+          }
+        }
+      }
+    }
+  }
+  post {
+    always {
+      cleanWs()
+    }
+  }
+}

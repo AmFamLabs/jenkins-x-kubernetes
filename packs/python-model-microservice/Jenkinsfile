@@ -1,0 +1,151 @@
+pipeline {
+  agent {
+    label "jenkins-python-gpu"
+  }
+  environment {
+    ORG = 'REPLACE_ME_ORG'
+    APP_NAME = 'REPLACE_ME_APP_NAME'
+    CHARTMUSEUM_CREDS = credentials('jenkins-x-chartmuseum')
+    PREVIEW_NAMESPACE = "jx-$ORG-$APP_NAME-$BRANCH_NAME".toLowerCase()
+    HELM_RELEASE = "$PREVIEW_NAMESPACE".toLowerCase()
+    STAGING_NAMESPACE = 'jx-staging'
+    DOMAIN_POSTFIX = 'kube.property.vision'
+    SMOKETEST_CMD = 'jenkins-smoketest'
+    PYPI_ADDRESS = credentials('pypi-address')
+    PYPI_CREDS = credentials('pypi-credentials')
+    PIP_EXTRA_INDEX_URL = "https://${PYPI_CREDS}@${PYPI_ADDRESS}/simple"
+  }
+  stages {
+    stage('Build and publish PR') {
+      when {
+        branch 'PR-*'
+      }
+      steps {
+        container('python') {
+          script {
+            // so we can retrieve in later steps
+            sh "echo $PIP_EXTRA_INDEX_URL > PIP_EXTRA_INDEX_URL"
+
+            sh "jx step git credentials"
+            sh "git config --global credential.helper store"
+            // so we can retrieve in later steps
+            sh "echo \$(jx-release-version)-$BRANCH_NAME-$BUILD_NUMBER > PREVIEW_VERSION"
+
+            sh "export VERSION=\$(cat PREVIEW_VERSION) && skaffold build -f skaffold.yaml"
+            sh "jx step post build --image $DOCKER_REGISTRY/$ORG/$APP_NAME:\$(cat PREVIEW_VERSION)"
+          }
+        }
+      }
+    }
+    stage('Unit test') {
+      when {
+        branch 'PR-*'
+      }
+      steps {
+        container('python') {
+          script {
+            repo = "$DOCKER_REGISTRY/$ORG/$APP_NAME:${sh(script: 'cat PREVIEW_VERSION', returnStdout: true)}"
+            sh "docker run -e PIP_EXTRA_INDEX_URL=$PIP_EXTRA_INDEX_URL $repo make test"
+          }
+        }
+      }
+    }
+    stage('Deploy to "preview"') {
+      when {
+        branch 'PR-*'
+      }
+      steps {
+        dir('./charts/preview') {
+          container('python') {
+            sh '''
+            export PREVIEW_VERSION=$(cat ../../PREVIEW_VERSION)
+            make preview
+            jx preview --app $APP_NAME --dir ../..
+            '''
+          }
+        }
+      }
+    }
+    stage('Build and publish "master"') {
+      when {
+        branch 'master'
+      }
+      steps {
+        container('python') {
+          // so we can retrieve in later steps
+          sh "echo $PIP_EXTRA_INDEX_URL > PIP_EXTRA_INDEX_URL"
+
+          // ensure we're not on a detached head
+          sh "git checkout master"
+          sh "jx step git credentials"
+          sh "git config --global credential.helper store"
+          // so we can retrieve the version in later steps
+          sh "echo \$(jx-release-version) > VERSION"
+        }
+        dir('./charts/REPLACE_ME_APP_NAME') {
+          container('python') {
+            sh "make tag"
+          }
+        }
+        container('python') {
+          sh 'export VERSION=\$(cat VERSION) && skaffold build -f skaffold.yaml'
+          sh "jx step post build --image $DOCKER_REGISTRY/$ORG/$APP_NAME:\$(cat VERSION)"
+        }
+      }
+    }
+    stage('Unit test "master"') {
+      when {
+        branch 'master'
+      }
+      steps {
+        container('python') {
+          script {
+            repo = "$DOCKER_REGISTRY/$ORG/$APP_NAME:${sh(script: 'cat VERSION', returnStdout: true)}".trim()
+            sh "docker run -e PIP_EXTRA_INDEX_URL=$PIP_EXTRA_INDEX_URL $repo make test"
+          }
+        }
+      }
+    }
+    stage('Wait for deployment') {
+      steps {
+        sleep(time: 60, unit: "SECONDS")
+      }
+    }
+    stage('Smoketest') {
+      steps {
+        container('python') {
+          script {
+            run_smoketest = sh(returnStatus: true, script: "grep -c ^${SMOKETEST_CMD}: Makefile")
+            if (run_smoketest == 0) {
+              repo = BRANCH_NAME == 'master' ? "$DOCKER_REGISTRY/$ORG/$APP_NAME:${sh(script: 'cat VERSION', returnStdout: true)}" : "$DOCKER_REGISTRY/$ORG/$APP_NAME:${sh(script: 'cat PREVIEW_VERSION', returnStdout: true)}"
+              repo = repo.trim()
+              hostname = BRANCH_NAME == 'master' ? "$APP_NAME.$STAGING_NAMESPACE.$DOMAIN_POSTFIX" : "$APP_NAME.$PREVIEW_NAMESPACE.$DOMAIN_POSTFIX"
+              sh "docker run -e PIP_EXTRA_INDEX_URL=$PIP_EXTRA_INDEX_URL $repo make $SMOKETEST_CMD SMOKE_HOST=${hostname} BRANCH=$BRANCH_NAME"
+            }
+          }
+        }
+      }
+    }
+    stage('Deploy to "staging"') {
+      when {
+        branch 'master'
+      }
+      steps {
+        dir('./charts/REPLACE_ME_APP_NAME') {
+          container('python') {
+            sh 'jx step changelog --version v\$(cat ../../VERSION)'
+            // release the helm chart
+            sh 'make release'
+            // promote through all 'Auto' promotion Environments
+            sh 'jx promote -b --all-auto --timeout 1h --version \$(cat ../../VERSION)'
+          }
+        }
+      }
+    }
+  }
+  post {
+    always {
+      cleanWs()
+    }
+  }
+}

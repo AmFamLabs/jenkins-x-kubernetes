@@ -1,0 +1,2 @@
+
+http://{{ .Release.Name }}.{{ .Values.basedomain }} to access your application
