@@ -39,13 +39,13 @@ pipeline {
             pipenv lock -r > requirements.txt
             '''
 
-            base_version = sh(script: "pipenv run setup.py --version", returnStdout: true).trim()
+            base_version = sh(script: "pipenv run python setup.py --version", returnStdout: true).trim()
             pr = BRANCH_NAME.replaceAll(/-/, "").toLowerCase()
             expanded_version = "${base_version}+${pr}.${BUILD_NUMBER}"
 
             sh "sed -i -e 's/^__version__ = .*/__version__ = \"$expanded_version\"/' setup.py"
 
-            sh "pipenv run python setup.py bdist_wheel"
+            sh "pipenv run python python setup.py bdist_wheel"
             sh "twine upload --repository-url ${TWINE_REPO} dist/*"
 
             pullRequest.comment("Successfully built and published **$expanded_version**")
@@ -71,7 +71,7 @@ pipeline {
             sh "pipenv run python setup.py bdist_wheel"
             sh "twine upload --repository-url ${TWINE_REPO} dist/*"
 
-            version = sh(script: "pipenv run setup.py --version", returnStdout: true).trim()
+            version = sh(script: "pipenv run python setup.py --version", returnStdout: true).trim()
             sh "jx step git credentials"
             sh "git config credential.helper store"
             sh "git tag -fa v${version} -m 'Release version ${version}'"
@@ -89,8 +89,8 @@ pipeline {
       steps {
         container('python') {
           script {
-            project_name = sh(script: "pipenv run setup.py --name", returnStdout: true).trim()
-            version = sh(script: "pipenv run setup.py --version", returnStdout: true).trim()
+            project_name = sh(script: "pipenv run python setup.py --name", returnStdout: true).trim()
+            version = sh(script: "pipenv run python setup.py --version", returnStdout: true).trim()
             new_patch_version = ((version.getAt(version.size() - 1) as Integer) + 1) as String
             new_version = version.replaceAll(/.$/, new_patch_version)
 
