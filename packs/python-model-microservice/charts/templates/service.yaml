@@ -8,10 +8,10 @@ metadata:
 {{- end }}
   labels:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
-{{- if .Values.service.annotations }}
   annotations:
-{{ toYaml .Values.service.annotations | indent 4 }}
-{{- end }}
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: {{ .Values.service.sslCertArn }}
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: http
+    external-dns.alpha.kubernetes.io/hostname: {{ template "dnsrecordname" . }}
 spec:
   type: {{ .Values.service.type }}
   ports:
