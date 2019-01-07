@@ -19,6 +19,9 @@ spec:
     spec:
       containers:
       - name: {{ .Chart.Name }}
+        env:
+          - name: foo
+            value: bar
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         ports:

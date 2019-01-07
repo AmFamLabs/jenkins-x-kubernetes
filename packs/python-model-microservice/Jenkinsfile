@@ -9,7 +9,7 @@ pipeline {
     PREVIEW_NAMESPACE = "jx-$ORG-$APP_NAME-$BRANCH_NAME".toLowerCase()
     HELM_RELEASE = "$PREVIEW_NAMESPACE".toLowerCase()
     STAGING_NAMESPACE = 'jx-staging'
-    DOMAIN_POSTFIX = 'kube.property.vision'
+    DOMAIN_POSTFIX = 'dev.arturo.ai'
     SMOKETEST_CMD = 'jenkins-smoketest'
     PYPI_ADDRESS = credentials('pypi-address')
     PYPI_CREDS = credentials('pypi-credentials')
@@ -37,15 +37,19 @@ pipeline {
         }
       }
     }
-    stage('Unit test') {
+    stage('Unit test "PR"') {
       when {
         branch 'PR-*'
       }
       steps {
         container('python') {
           script {
-            repo = "$DOCKER_REGISTRY/$ORG/$APP_NAME:${sh(script: 'cat PREVIEW_VERSION', returnStdout: true)}".trim()
-            sh "docker run -e PIP_EXTRA_INDEX_URL=$PIP_EXTRA_INDEX_URL $repo make test"
+            repo = "$DOCKER_REGISTRY/$ORG/$APP_NAME:${readFile 'PREVIEW_VERSION'}".trim()
+            docker
+              .image(repo)
+              .inside {
+                sh "make test"
+            }
           }
         }
       }
@@ -57,11 +61,25 @@ pipeline {
       steps {
         dir('./charts/preview') {
           container('python') {
-            sh '''
-            export PREVIEW_VERSION=$(cat ../../PREVIEW_VERSION)
-            make preview
-            jx preview --app $APP_NAME --dir ../..
-            '''
+            script {
+              PREVIEW_VERSION = readFile "../../PREVIEW_VERSION"
+
+              // create preview namespace if it doesn't exist
+              preview_namespace_exists = sh(returnStatus: true, script: "kubectl get namespaces | grep '^$PREVIEW_NAMESPACE[[:space:]]'")
+              if (preview_namespace_exists == 1) {
+                sh "kubectl create namespace $PREVIEW_NAMESPACE"
+              }
+              
+              // copy tls secret to preview namespace
+              sh "kubectl get secret arturo-tls -n jx --export -o yaml | kubectl apply -n $PREVIEW_NAMESPACE -f -"
+
+              // deploy application
+              sh """
+              export PREVIEW_VERSION=$PREVIEW_VERSION
+              make preview
+              jx preview --app $APP_NAME --dir ../..
+              """
+            }
           }
         }
       }
@@ -88,8 +106,14 @@ pipeline {
           }
         }
         container('python') {
-          sh 'export VERSION=\$(cat VERSION) && skaffold build -f skaffold.yaml'
-          sh "jx step post build --image $DOCKER_REGISTRY/$ORG/$APP_NAME:\$(cat VERSION)"
+          script {
+            VERSION = readFile 'VERSION'
+            sh """
+            export VERSION=$VERSION
+            skaffold build -f skaffold.yaml -p prod
+            """
+            sh "jx step post build --image $DOCKER_REGISTRY/$ORG/$APP_NAME:$VERSION"
+          }
         }
       }
     }
@@ -100,8 +124,12 @@ pipeline {
       steps {
         container('python') {
           script {
-            repo = "$DOCKER_REGISTRY/$ORG/$APP_NAME:${sh(script: 'cat VERSION', returnStdout: true)}".trim()
-            sh "docker run -e PIP_EXTRA_INDEX_URL=$PIP_EXTRA_INDEX_URL $repo make test"
+            repo = "$DOCKER_REGISTRY/$ORG/$APP_NAME:${readFile 'VERSION'}".trim()
+            docker
+              .image(repo)
+              .inside {
+                sh "make test"
+            }
           }
         }
       }
@@ -111,13 +139,17 @@ pipeline {
         branch 'master'
       }
       steps {
-        dir('./charts/number-stories-temp') {
+        dir('./charts/REPLACE_ME_APP_NAME') {
           container('python') {
-            sh 'jx step changelog --version v\$(cat ../../VERSION)'
-            // release the helm chart
-            sh 'make release'
-            // promote through all 'Auto' promotion Environments
-            sh 'jx promote -b --all-auto --timeout 1h --version \$(cat ../../VERSION)'
+            script {
+              VERSION = readFile 'VERSION'
+
+              sh "jx step changelog --version v$VERSION"
+              // release the helm chart
+              sh 'make release'
+              // promote through all 'Auto' promotion Environments
+              sh "jx promote -b --all-auto --timeout 1h --version $VERSION"
+            }
           }
         }
       }
@@ -154,6 +186,13 @@ pipeline {
   post {
     always {
       cleanWs()
+    }
+    success {
+      script {
+        if (BRANCH_NAME != 'master') {
+          pullRequest.comment("Successfully built and published **$APP_NAME** to https://${APP_NAME}.preview.${DOMAIN_POSTFIX} and http://${APP_NAME}.${PREVIEW_NAMESPACE}.${DOMAIN_POSTFIX}")
+        }
+      }
     }
   }
 }

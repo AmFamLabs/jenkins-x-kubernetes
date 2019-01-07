@@ -8,10 +8,7 @@ image:
   pullPolicy: IfNotPresent
 service:
   name: REPLACE_ME_APP_NAME
-  type: ClusterIP
-  externalPort: 80
   internalPort: 8000
-  sslCertArn: arn:aws:acm:us-east-1:108971624538:certificate/05858c5f-7093-4022-9c4c-a47154ea6fd1
 resources:
   limits:
     cpu: 2
@@ -19,5 +16,3 @@ resources:
   requests:
     cpu: 1
     memory: 8Gi
-ingress:
-  enabled: false
