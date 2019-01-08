@@ -142,7 +142,7 @@ pipeline {
         dir('./charts/REPLACE_ME_APP_NAME') {
           container('python') {
             script {
-              VERSION = readFile 'VERSION'
+              VERSION = readFile '../../VERSION'
 
               sh "jx step changelog --version v$VERSION"
               // release the helm chart
@@ -190,7 +190,7 @@ pipeline {
     success {
       script {
         if (BRANCH_NAME != 'master') {
-          pullRequest.comment("Successfully built and published **$APP_NAME** to https://${APP_NAME}.preview.${DOMAIN_POSTFIX} and http://${APP_NAME}.${PREVIEW_NAMESPACE}.${DOMAIN_POSTFIX}")
+          pullRequest.comment("Successfully built and deployed **$APP_NAME** to https://${APP_NAME}.preview.${DOMAIN_POSTFIX} and http://${APP_NAME}.${PREVIEW_NAMESPACE}.${DOMAIN_POSTFIX}")
         }
       }
     }
