@@ -1,0 +1,19 @@
+# other examples: https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale-walkthrough/#autoscaling-on-multiple-metrics-and-custom-metrics
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+{{- if .Values.service.name }}
+  name: "pod-autoscaling-{{ .Values.service.name }}"
+{{- else }}
+  name: "pod-autoscaling-{{ template "fullname" . }}"
+{{- end }}
+  labels:
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+spec:
+  maxReplicas: 100
+  minReplicas: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ template "fullname" . }}
+  targetCPUUtilizationPercentage: 10
