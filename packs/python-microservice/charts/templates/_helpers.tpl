@@ -28,6 +28,6 @@ Create a DNS record name
 Create a DNS record name
 */}}
 {{- define "provided_hostname" -}}
-{{- $service := list .Values.service.name .Release.Namespace | join "." | trunc 63 -}}
+{{- $service := list .Values.service.name .Release.Namespace | join "." -}}
 {{- printf "%s.dev.arturo.ai" $service -}}
 {{- end -}}
