@@ -71,7 +71,7 @@ pipeline {
               }
 
               // copy tls secret to preview namespace
-              sh "kubectl get secret arturo-tls -n jx --export -o yaml | kubectl apply -n $PREVIEW_NAMESPACE -f -"
+              sh "kubectl get secret arturo-tls -n jx-staging --export -o yaml | kubectl apply -n $PREVIEW_NAMESPACE -f -"
 
               // deploy application
               sh """
