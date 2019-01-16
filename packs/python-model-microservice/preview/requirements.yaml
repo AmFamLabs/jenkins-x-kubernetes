@@ -1,4 +1,4 @@
-
+# !! File must end with empty line !!
 dependencies:
 - alias: expose
   name: exposecontroller

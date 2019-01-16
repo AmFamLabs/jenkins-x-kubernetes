@@ -3,14 +3,14 @@ kind: Config
 build:
   tagPolicy:
     envTemplate:
-      template: "{{.DOCKER_REGISTRY}}/REPLACE_ME_ORG/REPLACE_ME_APP_NAME:{{.VERSION}}"
+      template: '{{.DOCKER_REGISTRY}}/REPLACE_ME_ORG/REPLACE_ME_APP_NAME:{{.VERSION}}'
   artifacts:
   - image: changeme
     context: .
     docker:
       buildArgs:
         app_name: REPLACE_ME_APP_NAME
-        #PIP_EXTRA_INDEX_URL: "{{.PIP_EXTRA_INDEX_URL}}" TODO: enable this once skaffold supports
+        #PIP_EXTRA_INDEX_URL: '{{.PIP_EXTRA_INDEX_URL}}'  # TODO: enable this once skaffold supports
   local: {}
 deploy:
   kubectl: {}
@@ -19,7 +19,7 @@ profiles:
   build:
     tagPolicy:
       envTemplate:
-        template: "{{.DOCKER_REGISTRY}}/REPLACE_ME_ORG/REPLACE_ME_APP_NAME:{{.DIGEST_HEX}}"
+        template: '{{.DOCKER_REGISTRY}}/REPLACE_ME_ORG/REPLACE_ME_APP_NAME:{{.DIGEST_HEX}}'
     artifacts:
     - docker: {}
     local: {}
@@ -29,5 +29,5 @@ profiles:
       - name: REPLACE_ME_APP_NAME
         chartPath: charts/REPLACE_ME_APP_NAME
         setValueTemplates:
-          image.repository: "{{.DOCKER_REGISTRY}}/REPLACE_ME_ORG/REPLACE_ME_APP_NAME"
-          image.tag: "{{.DIGEST_HEX}}"
+          image.repository: '{{.DOCKER_REGISTRY}}/REPLACE_ME_ORG/REPLACE_ME_APP_NAME'
+          image.tag: '{{.DIGEST_HEX}}'
