@@ -47,7 +47,7 @@ pipeline {
             PREVIEW_VERSION = readFile('PREVIEW_VERSION').trim()
             repo = "$DOCKER_REGISTRY/$ORG/$APP_NAME:$PREVIEW_VERSION"
             // add your env vars as needed with --env-file or -e
-            sh "docker run --rm -t $repo make test"
+            sh "docker run -e PIP_EXTRA_INDEX_URL=$PIP_EXTRA_INDEX_URL $repo make test"
           }
         }
       }
