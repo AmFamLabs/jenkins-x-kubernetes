@@ -63,10 +63,7 @@ pipeline {
               PREVIEW_VERSION = readFile("$WORKSPACE/PREVIEW_VERSION").trim()
 
               // create preview namespace if it doesn't exist
-              preview_namespace_exists = sh(returnStatus: true, script: "kubectl get namespaces | grep '^$PREVIEW_NAMESPACE[[:space:]]'")
-              if (preview_namespace_exists == 1) {
-                sh "kubectl create namespace $PREVIEW_NAMESPACE"
-              }
+              sh "kubectl get namespaces | grep '^$PREVIEW_NAMESPACE[[:space:]]' || kubectl create namespace $PREVIEW_NAMESPACE"
 
               // copy tls secret to preview namespace
               sh "kubectl get secret arturo-tls -n jx-staging --export -o yaml | kubectl apply -n $PREVIEW_NAMESPACE -f -"
