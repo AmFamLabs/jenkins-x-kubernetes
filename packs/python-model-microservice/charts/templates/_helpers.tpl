@@ -21,7 +21,7 @@ Create a DNS record name
 {{- define "custom_hostname" -}}
 {{- $env := ternary ".preview" (ternary ".staging" "" (contains "staging" .Release.Namespace)) (contains "-pr-" .Release.Namespace) -}}
 {{- $service := list .Values.service.name $env | join "" | trunc 63 -}}
-{{- printf "%s.dev.arturo.ai" $service -}}
+{{- printf "%s.arturo.ai" $service -}}
 {{- end -}}
 
 {{/*
@@ -29,5 +29,5 @@ Create a DNS record name
 */}}
 {{- define "provided_hostname" -}}
 {{- $service := list .Values.service.name .Release.Namespace | join "." -}}
-{{- printf "%s.dev.arturo.ai" $service -}}
+{{- printf "%s.arturo.ai" $service -}}
 {{- end -}}
