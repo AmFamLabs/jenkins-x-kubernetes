@@ -9,7 +9,7 @@ pipeline {
     PREVIEW_NAMESPACE = "jx-$ORG-$APP_NAME-$BRANCH_NAME".toLowerCase()
     HELM_RELEASE = "$PREVIEW_NAMESPACE".toLowerCase()
     STAGING_NAMESPACE = 'jx-staging'
-    DOMAIN_POSTFIX = 'dev.arturo.ai'
+    DOMAIN_POSTFIX = 'arturo.ai'
     SMOKETEST_CMD = 'jenkins-smoketest'
     PYPI_ADDRESS = credentials('pypi-address')
     PYPI_CREDS = credentials('pypi-credentials')
