@@ -45,7 +45,7 @@ pipeline {
 
             sh "sed -i -e 's/^__version__ = .*/__version__ = \"$expanded_version\"/' setup.py"
 
-            sh "pipenv run python python setup.py bdist_wheel"
+            sh "pipenv run python setup.py bdist_wheel"
             sh "twine upload --repository-url ${TWINE_REPO} dist/*"
 
             pullRequest.comment("Successfully built and published **$expanded_version**")
