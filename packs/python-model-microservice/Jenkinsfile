@@ -183,7 +183,7 @@ pipeline {
     success {
       script {
         if (BRANCH_NAME != 'master') {
-          pullRequest.comment("Successfully built and deployed **$APP_NAME** to https://${APP_NAME}.preview.${DOMAIN_POSTFIX}, http://${APP_NAME}.${PREVIEW_NAMESPACE}.${DOMAIN_POSTFIX}, and within the cluster at ${APP_NAME}.${PREVIEW_NAMESPACE}.svc.cluster.local")
+          pullRequest.comment("Successfully built and deployed **$APP_NAME** to http://${APP_NAME}.${PREVIEW_NAMESPACE}.${DOMAIN_POSTFIX}, and within the cluster at ${APP_NAME}.${PREVIEW_NAMESPACE}.svc.cluster.local")
         }
       }
     }
