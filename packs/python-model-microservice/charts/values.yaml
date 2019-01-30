@@ -20,5 +20,9 @@ resources:
     memory: 8Gi
     nvidia.com/gpu: 1
 env:
-  - name: foo
-    value: bar
+  production:
+    - name: foo
+      value: bar
+  development:
+    - name: foo
+      value: bar

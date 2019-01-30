@@ -18,5 +18,9 @@ resources:
     cpu: 1
     memory: 8Gi
 env:
-  - name: foo
-    value: bar
+  production:
+    - name: foo
+      value: bar
+  development:
+    - name: foo
+      value: bar
