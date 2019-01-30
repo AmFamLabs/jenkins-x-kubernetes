@@ -21,9 +21,10 @@ spec:
         node_type: cpu # matches the spotinst elastigroup node label
       containers:
       - name: {{ .Chart.Name }}
+{{- if .Values.env }}
         env:
-          - name: foo
-            value: bar
+{{ toYaml .Values.env | indent 12 }}
+{{- end }}
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         ports:

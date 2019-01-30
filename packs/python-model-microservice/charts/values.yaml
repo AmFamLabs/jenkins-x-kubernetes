@@ -18,3 +18,6 @@ resources:
     cpu: 1
     memory: 8Gi
     nvidia.com/gpu: 1
+env:
+  - name: foo
+    value: bar
