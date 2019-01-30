@@ -17,6 +17,8 @@ spec:
 {{ toYaml .Values.podAnnotations | indent 8 }}
 {{- end }}
     spec:
+      nodeSelector:
+        node_type: cpu # matches the spotinst elastigroup node label
       containers:
       - name: {{ .Chart.Name }}
         env:
