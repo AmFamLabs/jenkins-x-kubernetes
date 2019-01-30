@@ -17,11 +17,16 @@ spec:
 {{ toYaml .Values.podAnnotations | indent 8 }}
 {{- end }}
     spec:
+{{- if .Values.forceNodeType }}
+      nodeSelector:
+        node_type: {{ .Values.forceNodeType }}
+{{- end }}
       containers:
       - name: {{ .Chart.Name }}
+{{- if .Values.env }}
         env:
-          - name: foo
-            value: bar
+{{ toYaml .Values.env | indent 12 }}
+{{- end }}
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         ports:
