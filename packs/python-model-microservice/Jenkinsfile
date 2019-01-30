@@ -140,8 +140,11 @@ pipeline {
               sh "jx step changelog --version v$VERSION"
               // release the helm chart
               sh 'make release'
-              // promote through all 'Auto' promotion Environments
-              sh "jx promote -b --all-auto --timeout 1h --version $VERSION"
+              /** retry 8 times, or every 15 minutes for 2 hours */
+              retry(8) {
+                // promote through all 'Auto' promotion Environments
+                sh "jx promote -b --all-auto --timeout 15m --version $VERSION"
+              }
             }
           }
         }
