@@ -17,8 +17,10 @@ spec:
 {{ toYaml .Values.podAnnotations | indent 8 }}
 {{- end }}
     spec:
+{{- if .Values.forceNodeType }}
       nodeSelector:
-        node_type: gpu # matches the spotinst elastigroup node label
+        node_type: {{ .Values.forceNodeType }}
+{{- end }}
       containers:
       - name: {{ .Chart.Name }}
 {{- if .Values.env }}
