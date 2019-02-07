@@ -1,6 +1,6 @@
 pipeline {
   agent {
-    label "jenkins-python-gpu"
+    label "jenkins-python"
   }
   environment {
     ORG = 'REPLACE_ME_ORG'
@@ -14,6 +14,10 @@ pipeline {
     PYPI_ADDRESS = credentials('pypi-address')
     PYPI_CREDS = credentials('pypi-credentials')
     PIP_EXTRA_INDEX_URL = "https://${PYPI_CREDS}@${PYPI_ADDRESS}/simple"
+    ///
+    MODEL_NAME = model
+    MODEL_TAG = 'REPLACE_ME_MODEL_TAG'
+    MODEL_ARTIFACT_PATH = 'arturo-models/$MODEL_NAME/$MODEL_TAG'
   }
   stages {
     stage('Build and publish PR') {
@@ -23,6 +27,7 @@ pipeline {
       steps {
         container('python') {
           script {
+            sh "mkdir -p models && aws s3 sync s3://$MODEL_PATH ./models/$MODEL_NAME"
             // so we can retrieve in later steps
             sh "echo $PIP_EXTRA_INDEX_URL > PIP_EXTRA_INDEX_URL"
 
@@ -85,6 +90,9 @@ pipeline {
       }
       steps {
         container('python') {
+          // get the model
+          sh "mkdir -p models && aws s3 sync s3://$MODEL_PATH ./models/$MODEL_NAME"
+
           // so we can retrieve in later steps
           sh "echo $PIP_EXTRA_INDEX_URL > PIP_EXTRA_INDEX_URL"
 
@@ -112,21 +120,7 @@ pipeline {
         }
       }
     }
-    stage('Unit test "master"') {
-      when {
-        branch 'master'
-      }
-      steps {
-        container('python') {
-          script {
-            VERSION = readFile('VERSION').trim()
-            repo = "$DOCKER_REGISTRY/$ORG/$APP_NAME:$VERSION"
-            // add your env vars as needed with --env-file or -e
-            sh "docker run -e PIP_EXTRA_INDEX_URL=$PIP_EXTRA_INDEX_URL $repo make test"
-          }
-        }
-      }
-    }
+
     stage('Deploy to "staging"') {
       when {
         branch 'master'
@@ -155,21 +149,6 @@ pipeline {
               sh "kubectl rollout status deployment/$STAGING_NAMESPACE-$APP_NAME -n $STAGING_NAMESPACE --watch=true --timeout=10m"
             } else {
               sh "kubectl rollout status deployment/$PREVIEW_NAMESPACE-preview -n $PREVIEW_NAMESPACE --watch=true --timeout=10m"
-            }
-          }
-        }
-      }
-    }
-    stage('Smoketest') {
-      steps {
-        container('python') {
-          script {
-            run_smoketest = sh(returnStatus: true, script: "grep -c ^${SMOKETEST_CMD}: Makefile")
-            if (run_smoketest == 0) {
-              repo = BRANCH_NAME == 'master' ? "$DOCKER_REGISTRY/$ORG/$APP_NAME:${sh(script: 'cat VERSION', returnStdout: true)}" : "$DOCKER_REGISTRY/$ORG/$APP_NAME:${sh(script: 'cat PREVIEW_VERSION', returnStdout: true)}"
-              repo = repo.trim()
-              hostname = BRANCH_NAME == 'master' ? "${APP_NAME}.staging.${DOMAIN_POSTFIX}" : "${APP_NAME}.preview.${DOMAIN_POSTFIX}"
-              sh(script: "docker run -e PIP_EXTRA_INDEX_URL=$PIP_EXTRA_INDEX_URL $repo make $SMOKETEST_CMD SMOKE_HOST=${hostname} BRANCH=$BRANCH_NAME", returnStatus: true)
             }
           }
         }
