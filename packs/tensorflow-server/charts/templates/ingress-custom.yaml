@@ -1,0 +1,26 @@
+{{- if not ( contains "-pr-" .Release.Namespace ) }}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  {{- if .Values.service.name }}
+  name: "custom-ingress-{{ .Values.service.name }}"
+  {{- else }}
+  name: "custom-ingress-{{ template "fullname" . }}"
+  {{- end }}
+  labels:
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
+spec:
+  tls:
+    - hosts:
+        - {{ template "custom_hostname" . }}
+      secretName: arturo-tls
+  rules:
+    - host: {{ template "custom_hostname" . }}
+      http:
+        paths:
+          - backend:
+              serviceName: {{ .Values.service.name }}
+              servicePort: grpc
+  {{- end }}

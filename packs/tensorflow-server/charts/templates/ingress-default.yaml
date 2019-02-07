@@ -1,0 +1,18 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+{{- if .Values.service.name }}
+  name: "default-ingress-{{ .Values.service.name }}"
+{{- else }}
+  name: "default-ingress-{{ template "fullname" . }}"
+{{- end }}
+  labels:
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+spec:
+  rules:
+    - host: {{ template "provided_hostname" . }}
+      http:
+        paths:
+          - backend:
+              serviceName: {{ .Values.service.name }}
+              servicePort: grpc

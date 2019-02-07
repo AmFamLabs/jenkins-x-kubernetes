@@ -1,0 +1,39 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ template "fullname" . }}
+  labels:
+    draft: {{ default "draft-app" .Values.draft }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+spec:
+  replicas: {{ .Values.replicaCount }}
+  template:
+    metadata:
+      labels:
+        draft: {{ default "draft-app" .Values.draft }}
+        app: {{ template "fullname" . }}
+{{- if .Values.podAnnotations }}
+      annotations:
+{{ toYaml .Values.podAnnotations | indent 8 }}
+{{- end }}
+    spec:
+{{- if .Values.forceNodeType }}
+      nodeSelector:
+        node_type: {{ .Values.forceNodeType }}
+{{- end }}
+      containers:
+      - name: {{ .Chart.Name }}
+{{- if .Values.env }}
+        env:
+{{- if (contains "production" .Release.Namespace) }}
+{{ toYaml .Values.env.production | indent 12 }}
+{{- else }}
+{{ toYaml .Values.env.development | indent 12 }}
+{{- end }}
+{{- end }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.service.internalPort }}
+        resources:
+{{ toYaml .Values.resources | indent 12 }}
