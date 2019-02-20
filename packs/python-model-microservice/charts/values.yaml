@@ -11,15 +11,15 @@ service:
   name: REPLACE_ME_APP_NAME
   internalPort: 8000
 resources:
-  # corresponds to allocating most of p3.2xlarge capacity
-  # https://ec2instances.info/?filter=p3.2xlarge
+  # corresponds to allocating most of p2.xlarge capacity
+  # https://ec2instances.info/?filter=p2.xlarge
   limits:
-    cpu: 6
-    memory: 58Gi
+    cpu: 3
+    memory: 54G
     nvidia.com/gpu: 1
   requests:
-    cpu: 6
-    memory: 58Gi
+    cpu: 3
+    memory: 54G
     nvidia.com/gpu: 1
 env:
   production:
