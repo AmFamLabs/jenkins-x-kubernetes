@@ -20,7 +20,11 @@ Create a DNS record name
 */}}
 {{- define "custom_hostname" -}}
 {{- $env := ternary ".preview" (ternary ".staging" "" (contains "staging" .Release.Namespace)) (contains "-pr-" .Release.Namespace) -}}
-{{- $service := list .Values.service.name $env | join "" | trunc 63 -}}
+{{/*
+$pr will be something like "-pr-8" for preview and "" otherwise
+*/}}
+{{- $pr := regexFind "-pr-[1-9]*" .Release.Namespace -}}
+{{- $service := list .Values.service.name $pr $env | join "" | trunc 63 -}}
 {{- printf "%s.arturo.ai" $service -}}
 {{- end -}}
 

@@ -1,4 +1,5 @@
-{{- if not ( contains "-pr-" .Release.Namespace ) }}
+{{/* Only create in preview if the release is for the same service—not in preview/requirements.yaml */}}
+{{- if (not contains "-pr-" .Release.Namespace) or (contains .Values.service.name .Release.Namespace) }}
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
