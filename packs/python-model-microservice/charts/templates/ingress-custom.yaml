@@ -1,4 +1,5 @@
-{{- if not ( contains "-pr-" .Release.Namespace ) }}
+{{/* Only create in preview if the release is for the same service—not in preview/requirements.yaml */}}
+{{- if ( contains .Values.service.name .Release.Namespace ) }}
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
@@ -12,10 +13,10 @@ metadata:
 spec:
   tls:
     - hosts:
-      - {{ template "custom_hostname" . }}
+      - {{ template "custom_hostname3" . }}
       secretName: arturo-tls
   rules:
-    - host: {{ template "custom_hostname" . }}
+    - host: {{ template "custom_hostname3" . }}
       http:
         paths:
           - backend:
