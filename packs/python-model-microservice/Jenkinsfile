@@ -183,7 +183,7 @@ pipeline {
     success {
       script {
         if (BRANCH_NAME != 'master') {
-          pullRequest.comment("Successfully built and deployed **$APP_NAME** to https://${APP_NAME}-${BRANCH_NAME.toLowerCase()}.preview.${DOMAIN_POSTFIX} and within the cluster at http://${APP_NAME}.${PREVIEW_NAMESPACE}\nStaging will be https://${APP_NAME}.staging.${DOMAIN_POSTFIX}\nProduction will be https://${APP_NAME}.production.${DOMAIN_POSTFIX}")
+          pullRequest.comment("Successfully built and deployed **$APP_NAME** to https://${APP_NAME}-${BRANCH_NAME.toLowerCase()}.preview.${DOMAIN_POSTFIX} and within the cluster at http://${APP_NAME}.${PREVIEW_NAMESPACE}\nStaging will be https://${APP_NAME}.staging.${DOMAIN_POSTFIX}\nProduction will be https://${APP_NAME}.${DOMAIN_POSTFIX}")
         }
       }
     }
