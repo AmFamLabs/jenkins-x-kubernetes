@@ -168,7 +168,7 @@ pipeline {
             if (run_smoketest == 0) {
               repo = BRANCH_NAME == 'master' ? "$DOCKER_REGISTRY/$ORG/$APP_NAME:${sh(script: 'cat VERSION', returnStdout: true)}" : "$DOCKER_REGISTRY/$ORG/$APP_NAME:${sh(script: 'cat PREVIEW_VERSION', returnStdout: true)}"
               repo = repo.trim()
-              hostname = BRANCH_NAME == 'master' ? "${APP_NAME}.staging.${DOMAIN_POSTFIX}" : "${APP_NAME}.preview.${DOMAIN_POSTFIX}"
+              hostname = BRANCH_NAME == 'master' ? "${APP_NAME}.staging.${DOMAIN_POSTFIX}" : "${APP_NAME}-${BRANCH_NAME.toLowerCase()}.preview.${DOMAIN_POSTFIX}"
               sh(script: "docker run -e PIP_EXTRA_INDEX_URL=$PIP_EXTRA_INDEX_URL $repo make $SMOKETEST_CMD SMOKE_HOST=${hostname} BRANCH=$BRANCH_NAME", returnStatus: true)
             }
           }
