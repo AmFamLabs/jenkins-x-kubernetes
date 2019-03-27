@@ -1,0 +1,182 @@
+pipeline {
+  agent {
+    label "jenkins-maven"
+  }
+  environment {
+    ORG = 'REPLACE_ME_ORG'
+    APP_NAME = 'REPLACE_ME_APP_NAME'
+    CHARTMUSEUM_CREDS = credentials('jenkins-x-chartmuseum')
+    PREVIEW_NAMESPACE = "jx-$ORG-$APP_NAME-$BRANCH_NAME".toLowerCase()
+    HELM_RELEASE = "$PREVIEW_NAMESPACE".toLowerCase()
+    STAGING_NAMESPACE = 'jx-staging'
+    DOMAIN_POSTFIX = 'arturo.ai'
+    SMOKETEST_CMD = 'jenkins-smoketest'
+  }
+  stages {
+    stage('Build and publish PR') {
+      when {
+        branch 'PR-*'
+      }
+      steps {
+        container('maven') {
+          script {
+            sh "jx step git credentials"
+            sh "git config --global credential.helper store"
+            // so we can retrieve in later steps
+            sh "echo \$(jx-release-version)-$BRANCH_NAME-$BUILD_NUMBER > PREVIEW_VERSION"
+
+            sh "export VERSION=\$(cat PREVIEW_VERSION) && skaffold build -f skaffold.yaml"
+            sh "jx step post build --image $DOCKER_REGISTRY/$ORG/$APP_NAME:\$(cat PREVIEW_VERSION)"
+          }
+        }
+      }
+    }
+    stage('Unit test "PR"') {
+      when {
+        branch 'PR-*'
+      }
+      steps {
+        container('maven') {
+          script {
+            PREVIEW_VERSION = readFile('PREVIEW_VERSION').trim()
+            repo = "$DOCKER_REGISTRY/$ORG/$APP_NAME:$PREVIEW_VERSION"
+            // add your env vars as needed with --env-file or -e
+            sh "docker run $repo make test"
+          }
+        }
+      }
+    }
+    stage('Deploy to "preview"') {
+      when {
+        branch 'PR-*'
+      }
+      steps {
+        dir('./charts/preview') {
+          container('maven') {
+            script {
+              PREVIEW_VERSION = readFile("$WORKSPACE/PREVIEW_VERSION").trim()
+
+              // create preview namespace if it doesn't exist
+              sh "kubectl get namespaces | grep '^$PREVIEW_NAMESPACE[[:space:]]' || kubectl create namespace $PREVIEW_NAMESPACE"
+
+              // copy tls secret to preview namespace
+              sh "kubectl get secret arturo-tls -n jx-staging --export -o yaml | kubectl apply -n $PREVIEW_NAMESPACE -f -"
+
+              // deploy application
+              sh """
+              export PREVIEW_VERSION=$PREVIEW_VERSION
+              make preview
+              jx preview --app $APP_NAME --dir ../..
+              """
+            }
+          }
+        }
+      }
+    }
+    stage('Build and publish "master"') {
+      when {
+        branch 'master'
+      }
+      steps {
+        container('maven') {
+          // ensure we're not on a detached head
+          sh "git checkout master"
+          sh "jx step git credentials"
+          sh "git config --global credential.helper store"
+          // so we can retrieve the version in later steps
+          sh "echo \$(jx-release-version) > VERSION"
+        }
+        dir('./charts/REPLACE_ME_APP_NAME') {
+          container('maven') {
+            sh "make tag"
+          }
+        }
+        container('maven') {
+          script {
+            VERSION = readFile('VERSION').trim()
+            sh """
+            export VERSION=$VERSION
+            skaffold build -f skaffold.yaml -p prod
+            """
+            sh "jx step post build --image $DOCKER_REGISTRY/$ORG/$APP_NAME:$VERSION"
+          }
+        }
+      }
+    }
+    stage('Unit test "master"') {
+      when {
+        branch 'master'
+      }
+      steps {
+        container('maven') {
+          script {
+            VERSION = readFile('VERSION').trim()
+            repo = "$DOCKER_REGISTRY/$ORG/$APP_NAME:$VERSION"
+            // add your env vars as needed with --env-file or -e
+            sh "docker run $repo make test"
+          }
+        }
+      }
+    }
+    stage('Deploy to "staging"') {
+      when {
+        branch 'master'
+      }
+      steps {
+        dir('./charts/REPLACE_ME_APP_NAME') {
+          container('maven') {
+            script {
+              VERSION = readFile("$WORKSPACE/VERSION").trim()
+
+              sh "jx step changelog --version v$VERSION"
+              // release the helm chart
+              sh 'make release'
+              // promote through all 'Auto' promotion Environments
+              sh "jx promote -b --all-auto --timeout 1h --version $VERSION"
+            }
+          }
+        }
+      }
+    }
+    stage('Wait for successful roll-out') {
+      steps {
+        container('maven') {
+          script {
+            if (BRANCH_NAME == 'master') {
+              sh "kubectl rollout status deployment/$STAGING_NAMESPACE-$APP_NAME -n $STAGING_NAMESPACE --watch=true --timeout=10m"
+            } else {
+              sh "kubectl rollout status deployment/$PREVIEW_NAMESPACE-preview -n $PREVIEW_NAMESPACE --watch=true --timeout=10m"
+            }
+          }
+        }
+      }
+    }
+    stage('Smoketest') {
+      steps {
+        container('maven') {
+          script {
+            run_smoketest = sh(returnStatus: true, script: "grep -c ^${SMOKETEST_CMD}: Makefile")
+            if (run_smoketest == 0) {
+              repo = BRANCH_NAME == 'master' ? "$DOCKER_REGISTRY/$ORG/$APP_NAME:${sh(script: 'cat VERSION', returnStdout: true)}" : "$DOCKER_REGISTRY/$ORG/$APP_NAME:${sh(script: 'cat PREVIEW_VERSION', returnStdout: true)}"
+              repo = repo.trim()
+              hostname = BRANCH_NAME == 'master' ? "${APP_NAME}.staging.${DOMAIN_POSTFIX}" : "${APP_NAME}-${BRANCH_NAME.toLowerCase()}.preview.${DOMAIN_POSTFIX}"
+              sh(script: "docker run $repo make $SMOKETEST_CMD SMOKE_HOST=${hostname} BRANCH=$BRANCH_NAME", returnStatus: true)
+            }
+          }
+        }
+      }
+    }
+  }
+  post {
+    always {
+      cleanWs()
+    }
+    success {
+      script {
+        if (BRANCH_NAME != 'master') {
+          pullRequest.comment("Successfully built and deployed **$APP_NAME** to https://${APP_NAME}-${BRANCH_NAME.toLowerCase()}.preview.${DOMAIN_POSTFIX} and within the cluster at http://${APP_NAME}.${PREVIEW_NAMESPACE}\nStaging will be https://${APP_NAME}.staging.${DOMAIN_POSTFIX}\nProduction will be https://${APP_NAME}.${DOMAIN_POSTFIX}")
+        }
+      }
+    }
+  }
+}
