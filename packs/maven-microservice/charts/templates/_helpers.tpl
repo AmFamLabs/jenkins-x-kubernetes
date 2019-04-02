@@ -14,3 +14,27 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 {{- $name := default .Chart.Name .Values.nameOverride -}}
 {{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
+
+{{/*
+Create a DNS record name
+*/}}
+{{- define "custom_hostname3" -}}
+{{/*
+$env will be ".preview" for preview, ".staging" for staging, and "" for production
+*/}}
+{{- $env := ternary ".preview" (ternary ".staging" "" (contains "staging" .Release.Namespace)) (contains "-pr-" .Release.Namespace) -}}
+{{/*
+$pr will be something like "-pr-81" for preview and "" otherwise
+*/}}
+{{- $pr := regexFind "-pr-[1-9]+" .Release.Namespace -}}
+{{- $service := list .Values.service.name $pr $env | join "" | trunc 63 -}}
+{{- printf "%s.arturo.ai" $service -}}
+{{- end -}}
+
+{{/*
+Create a DNS record name
+*/}}
+{{- define "provided_hostname" -}}
+{{- $service := list .Values.service.name .Release.Namespace | join "." | trunc 63 -}}
+{{- printf "%s.arturo.ai" $service -}}
+{{- end -}}

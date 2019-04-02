@@ -1,0 +1,28 @@
+{{/* Only create if the release is for the same service—not in requirements.yaml */}}
+{{- if or ( contains .Values.service.name .Release.Namespace ) ( not ( contains "-pr-" .Release.Namespace ) ) }}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+{{- if .Values.service.name }}
+  name: "custom-ingress-{{ .Values.service.name }}"
+{{- else }}
+  name: "custom-ingress-{{ template "fullname" . }}"
+{{- end }}
+  labels:
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+spec:
+  tls:
+    - hosts:
+      - {{ template "custom_hostname3" . }}
+      secretName: arturo-tls
+  rules:
+    - host: {{ template "custom_hostname3" . }}
+      http:
+        paths:
+          - backend:
+              serviceName: {{ .Values.service.name }}
+              servicePort: 80
+          - backend:
+              serviceName: {{ .Values.service.name }}
+              servicePort: 443
+{{- end }}
