@@ -39,6 +39,26 @@ spec:
 {{- end }}
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
+{{- if .Values.service.readinessProbe }}
+        readinessProbe:
+          httpGet:
+            port: {{ .Values.service.internalPort }}
+            path: {{ .Values.service.readinessProbe.path }}
+          initialDelaySeconds: {{ .Values.service.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.service.readinessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.service.readinessProbe.timeoutSeconds }}
+          failureThreshold: {{ .Values.service.readinessProbe.failureThreshold }}
+{{- end }}
+{{- if .Values.service.livenessProbe }}
+        livenessProbe:
+          httpGet:
+            port: {{ .Values.service.internalPort }}
+            path: {{ .Values.service.livenessProbe.path }}
+          initialDelaySeconds: {{ .Values.service.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.service.livenessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.service.livenessProbe.timeoutSeconds }}
+          failureThreshold: {{ .Values.service.livenessProbe.failureThreshold }}
+{{- end }}
         ports:
         - containerPort: {{ .Values.service.internalPort }}
         resources:

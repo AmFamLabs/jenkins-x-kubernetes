@@ -13,10 +13,10 @@ metadata:
 spec:
   tls:
     - hosts:
-      - {{ template "custom_hostname3" . }}
+      - {{ template "custom_hostname4" . }}
       secretName: arturo-tls
   rules:
-    - host: {{ template "custom_hostname3" . }}
+    - host: {{ template "custom_hostname4" . }}
       http:
         paths:
           - backend:
