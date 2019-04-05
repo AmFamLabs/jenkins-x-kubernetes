@@ -10,6 +10,18 @@ image:
 service:
   name: REPLACE_ME_APP_NAME
   internalPort: 8000
+  livenessProbe:
+    path: /_mgmt/health
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readinessProbe:
+    path: /_mgmt/health
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 1
+    failureThreshold: 3
 resources:
   # corresponds to allocating most of p2.xlarge capacity
   # https://ec2instances.info/?filter=p2.xlarge

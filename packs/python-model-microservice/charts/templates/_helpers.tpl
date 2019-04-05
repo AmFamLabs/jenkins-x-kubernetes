@@ -26,7 +26,7 @@ $env will be ".preview" for preview, ".staging" for staging, and "" for producti
 {{/*
 $pr will be something like "-pr-81" for preview and "" otherwise
 */}}
-{{- $pr := regexFind "-pr-[1-9]+" .Release.Namespace -}}
+{{- $pr := regexFind "-pr-[0-9]+" .Release.Namespace -}}
 {{- $service := list .Values.service.name $pr $env | join "" | trunc 63 -}}
 {{- printf "%s.arturo.ai" $service -}}
 {{- end -}}
