@@ -18,7 +18,7 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 {{/*
 Create a DNS record name
 */}}
-{{- define "custom_hostname3" -}}
+{{- define "custom_hostname4" -}}
 {{/*
 $env will be ".preview" for preview, ".staging" for staging, and "" for production
 */}}
