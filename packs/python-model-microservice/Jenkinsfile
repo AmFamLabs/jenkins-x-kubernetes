@@ -68,6 +68,9 @@ pipeline {
               // copy tls secret to preview namespace
               sh "kubectl get secret arturo-tls -n jx-staging --export -o yaml | kubectl apply -n $PREVIEW_NAMESPACE -f -"
 
+              // label preview namespace with `istioinjection=enabled`
+              sh "kubectl label namespace $PREVIEW_NAMESPACE istio-injection=enabled --overwrite=true"
+
               // deploy application
               sh """
               export PREVIEW_VERSION=$PREVIEW_VERSION

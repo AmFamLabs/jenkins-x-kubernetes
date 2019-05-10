@@ -22,7 +22,4 @@ spec:
           - backend:
               serviceName: {{ .Values.service.name }}
               servicePort: 80
-          - backend:
-              serviceName: {{ .Values.service.name }}
-              servicePort: 443
 {{- end }}
