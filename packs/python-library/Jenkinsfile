@@ -41,7 +41,7 @@ pipeline {
 
             base_version = sh(script: "pipenv run python setup.py --version", returnStdout: true).trim()
             pr = BRANCH_NAME.replaceAll(/-/, "").toLowerCase()
-            expanded_version = "${base_version}.dev+${pr}.${BUILD_NUMBER}"
+            expanded_version = "${base_version}.dev0+${pr}.${BUILD_NUMBER}"
 
             sh "sed -i -e 's/^__version__ = .*/__version__ = \"$expanded_version\"/' setup.py"
 
