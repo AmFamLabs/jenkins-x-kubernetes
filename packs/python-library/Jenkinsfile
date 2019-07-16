@@ -21,8 +21,8 @@ pipeline {
       }
       steps {
         container('python') {
-          sh "docker build --build-arg PIP_EXTRA_INDEX_URL=$PIP_EXTRA_INDEX_URL -t library_image ."
-          sh "docker run library_image make test"
+          sh "make docker-build"
+          sh "make test"
         }
       }
     }
@@ -33,12 +33,6 @@ pipeline {
       steps {
         container('python') {
           script {
-            sh '''
-            source /root/.bashrc
-            pipenv install --dev --deploy
-            pipenv lock -r > requirements.txt
-            '''
-
             base_version = sh(script: "pipenv run python setup.py --version", returnStdout: true).trim()
             pr = BRANCH_NAME.replaceAll(/-/, "").toLowerCase()
             expanded_version = "${base_version}.dev0+${pr}.${BUILD_NUMBER}"
@@ -62,12 +56,6 @@ pipeline {
       steps {
         container('python') {
           script {
-            sh '''
-            source /root/.bashrc
-            pipenv install --dev --deploy
-            pipenv lock -r > requirements.txt
-            '''
-
             sh "pipenv run python setup.py bdist_wheel"
             sh "twine upload --repository-url ${TWINE_REPO} dist/*"
 
