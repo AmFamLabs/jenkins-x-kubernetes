@@ -43,7 +43,7 @@ pipeline {
             base_version = readFile('VERSION').trim()
             pr = BRANCH_NAME.replaceAll(/-/, "").toLowerCase()
             expanded_version = "${base_version}.dev0+${pr}.${BUILD_NUMBER}"
-            writeFile(file: 'VERSION', text: expanded_version.join('.'))
+            writeFile(file: 'VERSION', text: expanded_version)
 
             sh "python3 setup.py bdist_wheel"
             sh "twine upload --repository-url ${TWINE_REPO} dist/*"
