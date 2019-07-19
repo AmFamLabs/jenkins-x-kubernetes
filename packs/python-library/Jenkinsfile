@@ -5,6 +5,7 @@ pipeline {
   environment {
     ORG = 'REPLACE_ME_ORG'
     APP_NAME = 'REPLACE_ME_APP_NAME'
+    MODULE_NAME = "${APP_NAME.replaceAll(/-/, "_")}"
     PYPI_ADDRESS = credentials('pypi-address')
     PYPI_CREDS = credentials('pypi-credentials')
     TWINE_USERNAME = "${PYPI_CREDS_USR}"
@@ -21,8 +22,14 @@ pipeline {
       }
       steps {
         container('python') {
-          sh "make docker-build"
-          sh "make test"
+          sh """
+          docker build \
+            --build-arg app_name=${APP_NAME} \
+            --build-arg environment=development \
+            --build-arg artifactory_url=${PIP_EXTRA_INDEX_URL} \
+            -t test-image:latest .
+          """
+          sh "docker run --rm test-image:latest pytest -v --cov=${MODULE_NAME}"
         }
       }
     }
@@ -33,13 +40,12 @@ pipeline {
       steps {
         container('python') {
           script {
-            base_version = sh(script: "pipenv run python setup.py --version", returnStdout: true).trim()
+            base_version = readFile('VERSION').trim()
             pr = BRANCH_NAME.replaceAll(/-/, "").toLowerCase()
             expanded_version = "${base_version}.dev0+${pr}.${BUILD_NUMBER}"
+            writeFile(file: 'VERSION', text: expanded_version.join('.'))
 
-            sh "sed -i -e 's/^__version__ = .*/__version__ = \"$expanded_version\"/' setup.py"
-
-            sh "pipenv run python setup.py bdist_wheel"
+            sh "python3 setup.py bdist_wheel"
             sh "twine upload --repository-url ${TWINE_REPO} dist/*"
 
             pullRequest.comment("Successfully built and published **$expanded_version**")
@@ -56,10 +62,10 @@ pipeline {
       steps {
         container('python') {
           script {
-            sh "pipenv run python setup.py bdist_wheel"
+            sh "python3 setup.py bdist_wheel"
             sh "twine upload --repository-url ${TWINE_REPO} dist/*"
 
-            version = sh(script: "pipenv run python setup.py --version", returnStdout: true).trim()
+            version = readFile('VERSION').trim()
             sh "jx step git credentials"
             sh "git config credential.helper store"
             sh "git tag -fa v${version} -m 'Release version ${version}'"
@@ -77,17 +83,16 @@ pipeline {
       steps {
         container('python') {
           script {
-            project_name = sh(script: "pipenv run python setup.py --name", returnStdout: true).trim()
-            version = sh(script: "pipenv run python setup.py --version", returnStdout: true).trim()
-            new_patch_version = ((version.getAt(version.size() - 1) as Integer) + 1) as String
-            new_version = version.replaceAll(/.$/, new_patch_version)
-
             sh "git checkout master"
-            sh "sed -i -e 's/^__version__ = .*/__version__ = \"${new_version}\"/' setup.py"
+
+            version = readFile('VERSION').trim().split(/\./)
+            version[2] = ((version[2] as Integer) + 1) as String
+            writeFile(file: 'VERSION', text: version.join('.'))
+
+            sh "git add VERSION"
+            sh "git commit -m 'Increment patch version'"
             sh "jx step git credentials"
             sh "git config credential.helper store"
-            sh "git add setup.py"
-            sh "git commit -m 'Increment patch version'"
             sh "git push"
           }
         }
